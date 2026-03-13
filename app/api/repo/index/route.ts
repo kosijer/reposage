@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import type { IndexedRepo, KeyFile } from "@/lib/repo/types";
+import type {
+  IndexedRepo,
+  KeyFile,
+  RepoCommitSummary,
+  RepoMetadata,
+} from "@/lib/repo/types";
 import { ERROR_MESSAGES } from "@/lib/constants/messages";
 
 const GITHUB_API = "https://api.github.com";
@@ -34,6 +39,36 @@ interface GhContentItem {
   type: "file" | "dir";
   content?: string;
   encoding?: string;
+}
+
+interface GhRepo {
+  description?: string | null;
+  language?: string | null;
+  topics?: string[];
+  stargazers_count?: number;
+  forks_count?: number;
+  open_issues_count?: number;
+  default_branch?: string;
+  license?: { spdx_id?: string | null; name?: string | null } | null;
+  created_at?: string;
+  updated_at?: string;
+  pushed_at?: string;
+  html_url?: string;
+}
+
+interface GhCommit {
+  sha: string;
+  html_url?: string;
+  commit?: {
+    message?: string;
+    author?: {
+      name?: string;
+      date?: string;
+    };
+  };
+  author?: {
+    login?: string;
+  } | null;
 }
 
 export async function POST(req: Request) {
@@ -80,6 +115,26 @@ export async function POST(req: Request) {
         { status: repoRes.status }
       );
     }
+
+    const repoJson = (await repoRes.json()) as GhRepo;
+
+    const metadata: RepoMetadata = {
+      description: repoJson.description ?? null,
+      language: repoJson.language ?? null,
+      topics: Array.isArray(repoJson.topics) ? repoJson.topics : [],
+      stars: repoJson.stargazers_count ?? 0,
+      forks: repoJson.forks_count ?? 0,
+      openIssues: repoJson.open_issues_count ?? 0,
+      defaultBranch: repoJson.default_branch ?? "main",
+      license:
+        repoJson.license?.spdx_id ??
+        repoJson.license?.name ??
+        null,
+      createdAt: repoJson.created_at ?? "",
+      updatedAt: repoJson.updated_at ?? "",
+      pushedAt: repoJson.pushed_at ?? "",
+      htmlUrl: repoJson.html_url ?? "",
+    };
 
     // Fetch README
     let readme = "";
@@ -135,12 +190,40 @@ export async function POST(req: Request) {
       }
     }
 
+    // Fetch shallow commit history (most recent 3 commits)
+    const recentCommits: RepoCommitSummary[] = [];
+    try {
+      const commitsRes = await fetch(
+        `${GITHUB_API}/repos/${owner}/${repo}/commits?per_page=3`,
+        { headers: GITHUB_HEADERS }
+      );
+      if (commitsRes.ok) {
+        const commitsJson = (await commitsRes.json()) as GhCommit[];
+        for (const c of commitsJson) {
+          recentCommits.push({
+            sha: c.sha,
+            message: (c.commit?.message ?? "").split("\n")[0],
+            authorName:
+              c.commit?.author?.name ??
+              c.author?.login ??
+              null,
+            date: c.commit?.author?.date ?? "",
+            url: c.html_url ?? "",
+          });
+        }
+      }
+    } catch (commitErr) {
+      console.error("[repo/index] commits fetch failed", commitErr);
+    }
+
     const indexed: IndexedRepo = {
       owner,
       name: repo,
       readme,
       fileTree,
       keyFiles,
+      metadata,
+      recentCommits,
     };
 
     return NextResponse.json(indexed);

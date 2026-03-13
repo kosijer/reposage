@@ -86,13 +86,53 @@ export function ChatPanel() {
             <p className="empty-text">
               Ask anything about <strong>{currentRepo?.owner}/{currentRepo?.name}</strong> — how to run it, what it does, or how to contribute.
             </p>
-            <button
-              type="button"
-              onClick={handleSuggestImprovements}
-              className="suggest-link"
-            >
-              Suggest improvements
-            </button>
+            {currentRepo && (
+              <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+                <button
+                  type="button"
+                  className="suggest-link"
+                  onClick={() =>
+                    append({
+                      role: "user",
+                      content: `Give me a high-level overview of ${currentRepo.owner}/${currentRepo.name} and its main components.`,
+                    })
+                  }
+                >
+                  Overview of this repo
+                </button>
+                <button
+                  type="button"
+                  className="suggest-link"
+                  onClick={() =>
+                    append({
+                      role: "user",
+                      content: `How do I set up and run ${currentRepo.owner}/${currentRepo.name} locally?`,
+                    })
+                  }
+                >
+                  How to set up and run it
+                </button>
+                <button
+                  type="button"
+                  className="suggest-link"
+                  onClick={() =>
+                    append({
+                      role: "user",
+                      content: `Suggest good first issues or improvements I could work on in ${currentRepo.owner}/${currentRepo.name}.`,
+                    })
+                  }
+                >
+                  Good first improvements
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSuggestImprovements}
+                  className="suggest-link"
+                >
+                  Full repo improvement analysis
+                </button>
+              </div>
+            )}
           </div>
         )}
         {messages.map((m) => (
