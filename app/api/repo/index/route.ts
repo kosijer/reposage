@@ -9,6 +9,8 @@ import type {
 const OTHER_DOCS_MAX_FILES = 3;
 const OTHER_DOCS_MAX_CHARS_PER_FILE = 4000;
 const OTHER_DOCS_MAX_TOTAL_CHARS = 12000;
+/** Root docs to prioritize when present (so chat can answer about them). */
+const KEY_DOC_FILES = ["TECHNICAL_OVERVIEW.md", "CONTRIBUTING.md", "CHANGELOG.md"];
 import { ERROR_MESSAGES } from "@/lib/constants/messages";
 
 const GITHUB_API = "https://api.github.com";
@@ -246,11 +248,14 @@ export async function POST(req: Request) {
       console.error("[repo/index] commits fetch failed", commitErr);
     }
 
-    // Other .md docs: root (except README) and docs/ if present, token-capped
+    // Other .md docs: prioritize key root docs, then remaining root/docs .md, token-capped
     const otherDocs: KeyFile[] = [];
     const rootMdFiles = fileTree.filter(
       (n) => n.endsWith(".md") && n !== "README.md"
     );
+    const rootSet = new Set(rootMdFiles);
+    const keyDocsPresent = KEY_DOC_FILES.filter((name) => rootSet.has(name));
+    const rootMdRest = rootMdFiles.filter((n) => !KEY_DOC_FILES.includes(n));
     let docsMdFiles: string[] = [];
     if (fileTree.some((n) => n === "docs/")) {
       try {
@@ -268,10 +273,11 @@ export async function POST(req: Request) {
         // ignore
       }
     }
-    const allMdCandidates = [...rootMdFiles, ...docsMdFiles].slice(
-      0,
-      OTHER_DOCS_MAX_FILES
-    );
+    const allMdCandidates = [
+      ...keyDocsPresent,
+      ...rootMdRest,
+      ...docsMdFiles,
+    ].slice(0, OTHER_DOCS_MAX_FILES);
     let totalOtherChars = 0;
     for (const path of allMdCandidates) {
       if (totalOtherChars >= OTHER_DOCS_MAX_TOTAL_CHARS) break;
