@@ -38,6 +38,8 @@ export interface IndexedRepo {
   keyFiles: KeyFile[];
   metadata?: RepoMetadata;
   recentCommits?: RepoCommitSummary[];
+  firstCommit?: RepoCommitSummary | null;
+  otherDocs?: KeyFile[];
 }
 
 export type RepoContext = IndexedRepo;

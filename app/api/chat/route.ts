@@ -7,6 +7,24 @@ import { ERROR_MESSAGES, PROMPTS } from "@/lib/constants/messages";
 export const maxDuration = 30;
 const README_MAX_FOR_PROMPT = 8000;
 
+/** Format ISO date for model output: e.g. "March 13, 2026 at 7:44 PM" */
+function formatCommitDate(iso: string): string {
+  if (!iso) return "(unknown date)";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch {
+    return iso;
+  }
+}
+
 function buildSystemPrompt(repoContext: RepoContext | null): string {
   const base = PROMPTS.systemBase;
 
@@ -24,6 +42,8 @@ No repository is currently loaded. If the user asks about a repo, suggest they p
     keyFiles,
     metadata,
     recentCommits,
+    firstCommit,
+    otherDocs,
   } = repoContext;
 
   const metaBlock = metadata
@@ -43,10 +63,15 @@ No repository is currently loaded. If the user asks about a repo, suggest they p
       ? recentCommits
           .map(
             (c) =>
-              `- ${c.date} — ${c.message} (${c.authorName ?? "unknown"})`,
+              `- ${formatCommitDate(c.date)} — ${c.message} (${c.authorName ?? "unknown"})`,
           )
           .join("\n")
       : "(no recent commits fetched)";
+
+  const firstCommitBlock =
+    firstCommit
+      ? `First commit (project start): ${formatCommitDate(firstCommit.date)} — ${firstCommit.message} (${firstCommit.authorName ?? "unknown"})`
+      : null;
 
   const keyFilesBlock =
     keyFiles.length > 0
@@ -64,6 +89,18 @@ No repository is currently loaded. If the user asks about a repo, suggest they p
   const readmeNote = readmeTruncated
     ? `(NOTE: README truncated to ${README_MAX_FOR_PROMPT} characters)\n\n`
     : "";
+
+  const otherDocsBlock =
+    otherDocs && otherDocs.length > 0
+      ? otherDocs
+          .map(
+            (f) =>
+              `### ${f.name}\n\`\`\`\n${f.content.slice(0, 2000)}${
+                f.content.length > 2000 ? "\n... truncated" : ""
+              }\n\`\`\``,
+          )
+          .join("\n\n")
+      : null;
 
   const dirs = fileTree.filter((n) => n.endsWith("/"));
   const files = fileTree.filter((n) => !n.endsWith("/"));
@@ -102,6 +139,7 @@ ${metaBlock}
 
 ### Recent commits (most recent first)
 ${commitsBlock}
+${firstCommitBlock ? `\n### First commit (project start)\n${firstCommitBlock}` : ""}
 
 ### README
 ${readmeNote}${readme || "(no README)"}
@@ -110,7 +148,8 @@ ${readmeNote}${readme || "(no README)"}
 ${fileTreeBlock || "(no root entries)"}
 
 ### Key config files
-${keyFilesBlock}`;
+${keyFilesBlock}
+${otherDocsBlock ? `\n### Other documentation (root or docs/)\n${otherDocsBlock}` : ""}`;
 }
 
 export async function POST(req: Request) {

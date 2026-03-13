@@ -5,6 +5,10 @@ import type {
   RepoCommitSummary,
   RepoMetadata,
 } from "@/lib/repo/types";
+
+const OTHER_DOCS_MAX_FILES = 3;
+const OTHER_DOCS_MAX_CHARS_PER_FILE = 4000;
+const OTHER_DOCS_MAX_TOTAL_CHARS = 12000;
 import { ERROR_MESSAGES } from "@/lib/constants/messages";
 
 const GITHUB_API = "https://api.github.com";
@@ -192,6 +196,7 @@ export async function POST(req: Request) {
 
     // Fetch shallow commit history (most recent 3 commits)
     const recentCommits: RepoCommitSummary[] = [];
+    let firstCommit: RepoCommitSummary | null = null;
     try {
       const commitsRes = await fetch(
         `${GITHUB_API}/repos/${owner}/${repo}/commits?per_page=3`,
@@ -211,9 +216,86 @@ export async function POST(req: Request) {
             url: c.html_url ?? "",
           });
         }
+        // First commit: get last page from Link header (same per_page so page number is correct)
+        const linkHeader = commitsRes.headers.get("Link");
+        const lastPageMatch = linkHeader?.match(/<[^>]+[?&]page=(\d+)[^>]*>;\s*rel="last"/);
+        if (lastPageMatch) {
+          const lastPage = parseInt(lastPageMatch[1], 10);
+          const firstRes = await fetch(
+            `${GITHUB_API}/repos/${owner}/${repo}/commits?per_page=3&page=${lastPage}`,
+            { headers: GITHUB_HEADERS }
+          );
+          if (firstRes.ok) {
+            const firstJson = (await firstRes.json()) as GhCommit[];
+            // Last page: commits are still newest-first, so the oldest is last in the array
+            const c = firstJson[firstJson.length - 1];
+            if (c) {
+              firstCommit = {
+                sha: c.sha,
+                message: (c.commit?.message ?? "").split("\n")[0],
+                authorName:
+                  c.commit?.author?.name ?? c.author?.login ?? null,
+                date: c.commit?.author?.date ?? "",
+                url: c.html_url ?? "",
+              };
+            }
+          }
+        }
       }
     } catch (commitErr) {
       console.error("[repo/index] commits fetch failed", commitErr);
+    }
+
+    // Other .md docs: root (except README) and docs/ if present, token-capped
+    const otherDocs: KeyFile[] = [];
+    const rootMdFiles = fileTree.filter(
+      (n) => n.endsWith(".md") && n !== "README.md"
+    );
+    let docsMdFiles: string[] = [];
+    if (fileTree.some((n) => n === "docs/")) {
+      try {
+        const docsRes = await fetch(
+          `${GITHUB_API}/repos/${owner}/${repo}/contents/docs`,
+          { headers: GITHUB_HEADERS }
+        );
+        if (docsRes.ok) {
+          const docsContents = (await docsRes.json()) as GhContentItem[];
+          docsMdFiles = docsContents
+            .filter((i) => i.type === "file" && i.name.endsWith(".md"))
+            .map((i) => `docs/${i.name}`);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const allMdCandidates = [...rootMdFiles, ...docsMdFiles].slice(
+      0,
+      OTHER_DOCS_MAX_FILES
+    );
+    let totalOtherChars = 0;
+    for (const path of allMdCandidates) {
+      if (totalOtherChars >= OTHER_DOCS_MAX_TOTAL_CHARS) break;
+      const fileRes = await fetch(
+        `${GITHUB_API}/repos/${owner}/${repo}/contents/${path}`,
+        { headers: GITHUB_HEADERS }
+      );
+      if (!fileRes.ok) continue;
+      const fileData = (await fileRes.json()) as {
+        content?: string;
+        encoding?: string;
+      };
+      if (fileData.content && fileData.encoding === "base64") {
+        const content = Buffer.from(fileData.content, "base64").toString(
+          "utf-8"
+        );
+        const capped = content.slice(0, OTHER_DOCS_MAX_CHARS_PER_FILE);
+        const truncated = content.length > OTHER_DOCS_MAX_CHARS_PER_FILE;
+        otherDocs.push({
+          name: path,
+          content: capped + (truncated ? "\n\n[... truncated]" : ""),
+        });
+        totalOtherChars += capped.length;
+      }
     }
 
     const indexed: IndexedRepo = {
@@ -224,6 +306,8 @@ export async function POST(req: Request) {
       keyFiles,
       metadata,
       recentCommits,
+      firstCommit: firstCommit ?? undefined,
+      otherDocs: otherDocs.length > 0 ? otherDocs : undefined,
     };
 
     return NextResponse.json(indexed);
