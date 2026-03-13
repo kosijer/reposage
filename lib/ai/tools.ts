@@ -21,20 +21,6 @@ export const reposageTools = {
       };
     },
   }),
-
-  // Example: search nodes in the graph
-  searchGraphNodes: tool({
-    description: "Search for node labels or IDs in the current graph",
-    parameters: z.object({
-      query: z.string().describe("Search query for node label or id"),
-    }),
-    execute: async ({ query }) => {
-      return {
-        query,
-        message: `Search for "${query}" in graph (wire to Zustand/React Flow state).`,
-      };
-    },
-  }),
 };
 
 export type RepoSageTools = typeof reposageTools;

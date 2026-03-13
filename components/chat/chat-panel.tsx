@@ -1,6 +1,8 @@
 "use client";
 
 import { useChat } from "ai/react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useRepoStore } from "@/stores/repo-store";
 import { apiUrl } from "@/lib/api-base-url";
 
@@ -32,52 +34,66 @@ export function ChatPanel() {
   }
 
   return (
-    <div className="flex h-full flex-col rounded-lg border border-[var(--border)] bg-zinc-900/80 p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-[var(--foreground)]">RepoSage Chat</h2>
-        <button
-          type="button"
-          onClick={handleSuggestImprovements}
-          disabled={isLoading}
-          className="shrink-0 rounded-md border border-[var(--border)] px-2 py-1 text-xs font-medium text-[var(--foreground)] hover:bg-zinc-800 disabled:opacity-50"
-        >
-          Suggest improvements
-        </button>
-      </div>
-      <div className="flex-1 space-y-3 overflow-y-auto text-sm">
+    <>
+      <div className="chat-scroll">
+        {messages.length === 0 && !isLoading && (
+          <div className="empty-state">
+            <p className="empty-text">
+              {currentRepo
+                ? (
+                  <>
+                    Ask anything about <strong>{currentRepo.owner}/{currentRepo.name}</strong> — how to run it, what it does, or how to contribute.
+                  </>
+                )
+                : "Load a repo in the bar above, then ask questions here."}
+            </p>
+            {currentRepo && (
+              <button
+                type="button"
+                onClick={handleSuggestImprovements}
+                className="suggest-link"
+              >
+                Suggest improvements
+              </button>
+            )}
+          </div>
+        )}
         {messages.map((m) => (
-          <div
-            key={m.id}
-            className={
-              m.role === "user"
-                ? "text-right text-[var(--foreground)]"
-                : "text-left text-[var(--muted)]"
-            }
-          >
-            <span className="font-medium">{m.role}: </span>
-            {m.content}
+          <div key={m.id} className={`message-row ${m.role}`}>
+            <div className="message-bubble">
+              {m.role === "user" ? (
+                <span className="whitespace-pre-wrap">{m.content}</span>
+              ) : (
+                <div className="chat-markdown">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                </div>
+              )}
+            </div>
           </div>
         ))}
         {isLoading && (
-          <div className="text-left text-[var(--muted)]">Thinking…</div>
+          <div className="message-row">
+            <div className="message-bubble">
+              <span className="typing-dots">Thinking…</span>
+            </div>
+          </div>
         )}
       </div>
-      <form onSubmit={handleSubmit} className="mt-3 flex gap-2">
-        <input
-          value={input}
-          onChange={handleInputChange}
-          placeholder={currentRepo ? `Ask about ${currentRepo.owner}/${currentRepo.name}…` : "Paste a GitHub URL above, then ask…"}
-          className="flex-1 rounded-md border border-[var(--border)] bg-zinc-800 px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:outline-none"
-          disabled={isLoading}
-        />
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-        >
-          Send
-        </button>
-      </form>
-    </div>
+
+      <div className="chat-input-wrap">
+        <form onSubmit={handleSubmit} className="chat-input-inner">
+          <input
+            value={input}
+            onChange={handleInputChange}
+            placeholder={currentRepo ? `Ask about ${currentRepo.owner}/${currentRepo.name}…` : "Load a repo above, then type your question…"}
+            disabled={isLoading}
+            aria-label="Message"
+          />
+          <button type="submit" disabled={isLoading}>
+            Send
+          </button>
+        </form>
+      </div>
+    </>
   );
 }
