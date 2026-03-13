@@ -14,7 +14,9 @@ This document explains how RepoSage works from a technical perspective so you ca
    - Fetches:
      - README (truncated to `README_MAX_CHARS`),
      - root file tree (`/contents`),
-     - key config files in the repo root (e.g. `package.json`, `pyproject.toml`, `go.mod`, etc.).
+     - key config files in the repo root (e.g. `package.json`, `pyproject.toml`, `go.mod`, etc.),
+     - basic repo metadata (description, language, topics, stars, forks, open issues, license, default branch, created/updated/pushed timestamps, HTML URL),
+     - a shallow commit history (most recent 3 commits: SHA, 1st-line message, author, date, URL).
    - Returns a single `IndexedRepo` object.
 4. The client **creates a new chat tab** for the repo and sets it as the active tab.
 5. When the user sends a message, the chat UI calls `POST /api/chat` with:
@@ -43,6 +45,8 @@ Types:
   - `readme: string`
   - `fileTree: string[]` (root-level files and folders; folders end with `/`)
   - `keyFiles: { name: string; content: string }[]`
+  - `metadata?: RepoMetadata` – repo metadata (description, language, topics, stars, forks, open issues, default branch, license, created/updated/pushed timestamps, HTML URL)
+  - `recentCommits?: RepoCommitSummary[]` – most recent commit summaries (SHA, 1st-line message, author, date, URL)
 
 Constants:
 
@@ -95,10 +99,14 @@ Key steps:
      - `GET /repos/{owner}/{repo}/contents/{name}`.
      - If OK and base64-encoded, decode and push into `keyFiles`.
 
-7. **Return `IndexedRepo`:**
-   - Combine all pieces into `{ owner, name: repo, readme, fileTree, keyFiles }`.
+7. **Fetch shallow commit history:**
+   - `GET /repos/{owner}/{repo}/commits?per_page=3`.
+   - Map each entry to `RepoCommitSummary` (SHA, 1st-line message, author name, date, URL).
 
-8. **Global error handler:**
+8. **Return `IndexedRepo`:**
+   - Combine all pieces into `{ owner, name: repo, readme, fileTree, keyFiles, metadata, recentCommits }`.
+
+9. **Global error handler:**
    - Catches unexpected errors, logs `[repo/index]` tag, and returns `500` with `indexFailed`.
 
 ### 2.2 `POST /api/chat`
@@ -129,10 +137,14 @@ Flow:
        - Uses `PROMPTS.systemBase` and appends instructions telling the model to ask for a repo URL first.
      - If present:
        - Injects:
-         - Current repo name (`owner/name`).
-         - README content (or `(no README)`).
-         - Root `fileTree` joined by newline.
-         - Key config files rendered as `### name` + fenced code block with up to 2000 characters (truncated with `"... truncated"` marker).
+         - An explicit note about the current repo/tab: `You are currently answering about repository: owner/name. Do not refer to other repositories or previous tabs unless the user explicitly asks you to switch context.`
+         - **Repo metadata**: description, language, stars/forks/open issues, topics, created/last pushed timestamps.
+         - **Recent commits**: a short bullet list of the last 3 commits (date, 1st-line message, author).
+         - **README**: README content (or `(no README)`), prefixed with a note when it was truncated: `(NOTE: README truncated to 8000 characters)`.
+         - **File tree**: grouped summary of root directories and key files instead of a raw flat list:
+           - `Directories:` — only folder names.
+           - `Key files:` — important config/entry files like `package.json`, `requirements.txt`, `pyproject.toml`, `go.mod`, `docker-compose.yml`, `README.md`, `Makefile`, etc.
+         - **Key config files**: rendered as `### name` + fenced code block with up to 2000 characters (truncated with `"... truncated"` marker).
 
 3. **Call Gemini via Vercel AI SDK:**
    - `google("gemini-2.0-flash")`.

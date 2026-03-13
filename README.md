@@ -1,6 +1,6 @@
 # RepoSage
 
-RepoSage is a small Next.js app that lets you paste any **public GitHub repo URL** and then **chat with an AI** that already knows the repo (README, root file tree, key config files).
+RepoSage is a small Next.js app that lets you paste any **public GitHub repo URL** and then **chat with an AI** that already knows the repo (README, root file tree, key config files, basic metadata, and the most recent commits).
 
 There is:
 
