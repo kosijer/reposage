@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import type { IndexedRepo, KeyFile } from "@/lib/repo/types";
+import { ERROR_MESSAGES } from "@/lib/constants/messages";
 
 const GITHUB_API = "https://api.github.com";
+const GITHUB_HEADERS = { Accept: "application/vnd.github.v3+json" };
 const README_MAX_CHARS = 8000;
 const KEY_CONFIG_FILES = [
   "package.json",
@@ -41,7 +43,7 @@ export async function POST(req: Request) {
 
     if (!url || typeof url !== "string") {
       return NextResponse.json(
-        { error: "Missing or invalid url" },
+        { error: ERROR_MESSAGES.missingUrl },
         { status: 400 }
       );
     }
@@ -49,7 +51,7 @@ export async function POST(req: Request) {
     const parsed = parseGitHubUrl(url);
     if (!parsed) {
       return NextResponse.json(
-        { error: "Invalid GitHub URL. Use format: https://github.com/owner/repo" },
+        { error: ERROR_MESSAGES.invalidGitHubUrl },
         { status: 400 }
       );
     }
@@ -58,23 +60,23 @@ export async function POST(req: Request) {
 
     // Check repo exists and is public
     const repoRes = await fetch(`${GITHUB_API}/repos/${owner}/${repo}`, {
-      headers: { Accept: "application/vnd.github.v3+json" },
+      headers: GITHUB_HEADERS,
     });
     if (!repoRes.ok) {
       if (repoRes.status === 404) {
         return NextResponse.json(
-          { error: "Repo not found or not public" },
+          { error: ERROR_MESSAGES.repoNotFound },
           { status: 404 }
         );
       }
       if (repoRes.status === 403) {
         return NextResponse.json(
-          { error: "Rate limited. Try again later." },
+          { error: ERROR_MESSAGES.rateLimited },
           { status: 429 }
         );
       }
       return NextResponse.json(
-        { error: "Failed to fetch repository" },
+        { error: ERROR_MESSAGES.fetchRepoFailed },
         { status: repoRes.status }
       );
     }
@@ -83,7 +85,7 @@ export async function POST(req: Request) {
     let readme = "";
     const readmeRes = await fetch(
       `${GITHUB_API}/repos/${owner}/${repo}/readme`,
-      { headers: { Accept: "application/vnd.github.v3+json" } }
+      { headers: GITHUB_HEADERS }
     );
     if (readmeRes.ok) {
       const readmeData = (await readmeRes.json()) as {
@@ -101,7 +103,7 @@ export async function POST(req: Request) {
     // Fetch root file tree
     const contentsRes = await fetch(
       `${GITHUB_API}/repos/${owner}/${repo}/contents`,
-      { headers: { Accept: "application/vnd.github.v3+json" } }
+      { headers: GITHUB_HEADERS }
     );
     const fileTree: string[] = [];
     if (contentsRes.ok) {
@@ -118,7 +120,7 @@ export async function POST(req: Request) {
       if (!rootNames.has(name)) continue;
       const fileRes = await fetch(
         `${GITHUB_API}/repos/${owner}/${repo}/contents/${name}`,
-        { headers: { Accept: "application/vnd.github.v3+json" } }
+        { headers: GITHUB_HEADERS }
       );
       if (!fileRes.ok) continue;
       const fileData = (await fileRes.json()) as {

@@ -1,14 +1,22 @@
 # RepoSage
 
-Boilerplate for an AI-powered repository insights and graph app.
+RepoSage is a small Next.js app that lets you paste any **public GitHub repo URL** and then **chat with an AI** that already knows the repo (README, root file tree, key config files).
+
+There is:
+
+- No cloning
+- No local indexing process to manage
+- A **ChatGPT-style UI** with:
+  - Tabs (one per loaded repo)
+  - Markdown rendering
+  - Repo-aware system prompt
 
 ## Stack
 
 - **Next.js 15** + **TypeScript** (App Router)
-- **React Flow** (`@xyflow/react`) – drag-and-drop graph canvas
-- **Vercel AI SDK** – streaming chat + **tool calling** with **Gemini** (`@ai-sdk/google`)
-- **Supabase** – auth, DB, realtime (client + server helpers)
-- **Zustand** – global state (e.g. flow store)
+- **Vercel AI SDK** – streaming chat + tool calling with **Gemini** (`@ai-sdk/google`)
+- **Zustand** – lightweight client-side state (`repo` and `tab` stores)
+- **Supabase** – optional (helpers are wired, but not used yet)
 
 ## Setup
 
@@ -35,17 +43,26 @@ Boilerplate for an AI-powered repository insights and graph app.
 
 ## Project layout
 
-- `app/` – Next.js App Router (layout, page, `api/chat`)
-- `app/api/chat/route.ts` – AI chat endpoint (Gemini + tools)
-- `components/flow/` – React Flow canvas
-- `components/chat/` – Chat UI using `useChat`
-- `lib/ai/tools.ts` – AI tools (e.g. `getRepoSummary`, `searchGraphNodes`)
-- `lib/supabase/` – Supabase client (browser) and server client
-- `stores/` – Zustand stores (e.g. `flow-store`)
+- `app/`
+  - `page.tsx` – mounts the chat layout
+  - `api/chat/route.ts` – AI chat endpoint (Gemini + tools)
+  - `api/repo/index/route.ts` – repo indexing endpoint (README + root file tree + key config files)
+- `components/chat/`
+  - `chat-layout.tsx` – header + tab bar + chat area
+  - `chat-panel.tsx` – ChatGPT-style chat UI (bubbles, markdown, input)
+  - `tab-bar.tsx` – one tab per loaded repo
+- `components/repo/`
+  - `repo-url-input.tsx` – paste GitHub URL and load a repo
+- `lib/`
+  - `ai/tools.ts` – AI tools (e.g. `getRepoSummary`)
+  - `constants/messages.ts` – shared prompts and error messages
+  - `repo/types.ts` – `IndexedRepo` and related types
+  - `supabase/*` – Supabase helpers (currently unused)
+- `stores/`
+  - `repo-store.ts` – simple loading/error state for repo indexing
+  - `tab-store.ts` – tab state (`tabs`, `currentTabId`, per-tab messages)
 
-## AI tools
-
-Edit `lib/ai/tools.ts` to add or change tools. Wire tool logic to Supabase or your graph state as needed. The chat route uses `streamText` with `maxSteps: 5` for multi-turn tool use.
+For a deeper technical description, see **`TECHNICAL_OVERVIEW.md`**.
 
 ## Scripts
 

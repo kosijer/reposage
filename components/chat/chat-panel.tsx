@@ -7,14 +7,7 @@ import remarkGfm from "remark-gfm";
 import { useTabStore } from "@/stores/tab-store";
 import { apiUrl } from "@/lib/api-base-url";
 import type { ChatMessage } from "@/stores/tab-store";
-
-const SUGGEST_IMPROVEMENTS_PROMPT = `Analyze this repository and suggest concrete improvements. Structure your response in these categories:
-
-1. **Missing documentation** — What's undocumented or unclear?
-2. **Potential issues** — Security, performance, or maintainability concerns
-3. **Next steps** — Actionable improvements (e.g. add tests, update deps, refactor X)
-
-Be specific and actionable. Reference actual files or patterns when relevant.`;
+import { PROMPTS } from "@/lib/constants/messages";
 
 function toChatMessage(m: { id?: string; role: string; content: string }): ChatMessage {
   return {
@@ -64,7 +57,7 @@ export function ChatPanel() {
 
   function handleSuggestImprovements() {
     if (!currentRepo) return;
-    append({ role: "user", content: SUGGEST_IMPROVEMENTS_PROMPT });
+    append({ role: "user", content: PROMPTS.suggestImprovements });
   }
 
   if (!currentTabId) {

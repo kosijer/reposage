@@ -2,13 +2,12 @@ import { google } from "@ai-sdk/google";
 import { streamText, type CoreMessage } from "ai";
 import { reposageTools } from "@/lib/ai/tools";
 import type { RepoContext } from "@/lib/repo/types";
+import { ERROR_MESSAGES, PROMPTS } from "@/lib/constants/messages";
 
 export const maxDuration = 30;
 
 function buildSystemPrompt(repoContext: RepoContext | null): string {
-  const base = `You are RepoSage, an AI assistant that helps users understand GitHub repositories.
-Answer questions about the repository's purpose, setup, architecture, and code.
-Be concise and practical. Use the provided tools when relevant.`;
+  const base = PROMPTS.systemBase;
 
   if (!repoContext) {
     return `${base}
@@ -41,24 +40,45 @@ ${keyFilesBlock}`;
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
-  const { messages, repoContext }: { messages: CoreMessage[]; repoContext?: RepoContext | null } = body;
+  try {
+    const body = await req.json();
+    const { messages, repoContext }: { messages?: CoreMessage[]; repoContext?: RepoContext | null } = body ?? {};
 
-  const model = google("gemini-2.0-flash");
-  const systemPrompt = buildSystemPrompt(repoContext ?? null);
+    if (!Array.isArray(messages)) {
+      return new Response(
+        JSON.stringify({ error: ERROR_MESSAGES.chatBadRequest }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
 
-  const result = streamText({
-    model,
-    system: systemPrompt,
-    messages,
-    tools: reposageTools,
-    maxSteps: 5,
-    onFinish: async () => {
-      // Optional: log or persist to Supabase
-      // const supabase = await createClient();
-      // await supabase.from('chat_logs').insert({ ... });
-    },
-  });
+    const model = google("gemini-2.0-flash");
+    const systemPrompt = buildSystemPrompt(repoContext ?? null);
 
-  return result.toDataStreamResponse();
+    const result = streamText({
+      model,
+      system: systemPrompt,
+      messages,
+      tools: reposageTools,
+      maxSteps: 5,
+      onFinish: async () => {
+        // Optional: log or persist to Supabase
+        // const supabase = await createClient();
+        // await supabase.from('chat_logs').insert({ ... });
+      },
+    });
+
+    return result.toDataStreamResponse();
+  } catch (err) {
+    console.error("[chat]", err);
+    return new Response(
+      JSON.stringify({ error: "Unexpected error while handling chat request" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
 }
