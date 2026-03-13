@@ -29,4 +29,3 @@ You land on an unfamiliar GitHub repo and spend 10 minutes reading scattered doc
 - **Backend**: New API routes for GitHub fetching (via GitHub REST API or raw content), repo indexing, and context assembly for AI
 - **AI**: Extend existing Vercel AI + Gemini setup with repo context injection and tool calling for file lookups
 - **Dependencies**: GitHub API client or fetch-based access; possibly file-type detection for "key config" selection
-- **Supabase** (optional): Cache indexed repo data to avoid repeated fetches; not required for MVP

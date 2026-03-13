@@ -16,7 +16,6 @@ There is:
 - **Next.js 15** + **TypeScript** (App Router)
 - **Vercel AI SDK** – streaming chat + tool calling with **Gemini** (`@ai-sdk/google`)
 - **Zustand** – lightweight client-side state (`repo` and `tab` stores)
-- **Supabase** – optional (helpers are wired, but not used yet)
 
 ## Setup
 
@@ -31,7 +30,6 @@ There is:
    Copy `.env.example` to `.env.local` and set:
 
    - `GOOGLE_GENERATIVE_AI_API_KEY` – [Google AI Studio](https://aistudio.google.com/apikey)
-   - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` – [Supabase](https://supabase.com) project
 
 3. **Run**
 
@@ -57,7 +55,6 @@ There is:
   - `ai/tools.ts` – AI tools (e.g. `getRepoSummary`)
   - `constants/messages.ts` – shared prompts and error messages
   - `repo/types.ts` – `IndexedRepo` and related types
-  - `supabase/*` – Supabase helpers (currently unused)
 - `stores/`
   - `repo-store.ts` – simple loading/error state for repo indexing
   - `tab-store.ts` – tab state (`tabs`, `currentTabId`, per-tab messages)

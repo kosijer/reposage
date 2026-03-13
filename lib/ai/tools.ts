@@ -6,7 +6,7 @@ import { z } from "zod";
  * Add your own tools and wire them in app/api/chat/route.ts.
  */
 export const reposageTools = {
-  // Example: get repo summary (implement with real data/Supabase later)
+  // Example: get repo summary (implement with real data source later)
   getRepoSummary: tool({
     description: "Get a short summary of a repository by owner and name",
     parameters: z.object({

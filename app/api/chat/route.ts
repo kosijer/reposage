@@ -142,9 +142,7 @@ export async function POST(req: Request) {
       tools: reposageTools,
       maxSteps: 5,
       onFinish: async () => {
-        // Optional: log or persist to Supabase
-        // const supabase = await createClient();
-        // await supabase.from('chat_logs').insert({ ... });
+        // Optional: log or persist chat elsewhere
       },
     });
 

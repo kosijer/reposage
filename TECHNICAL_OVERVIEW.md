@@ -289,10 +289,10 @@ Ideas for future work and where they would plug in:
 2. **Persisting history**
    - Currently, messages are in-memory only (per tab).
    - To persist:
-     - Attach a `tabId` or derived `repoId` and send chat logs to Supabase (see `onFinish` in `api/chat/route.ts`).
+     - Attach a `tabId` or derived `repoId` and send chat logs to a database (see `onFinish` in `api/chat/route.ts`).
 
 3. **Authentication / multi-user**
-   - Add auth (e.g. Supabase Auth) and associate tabs/history with a user id.
+   - Add auth (e.g. NextAuth or similar) and associate tabs/history with a user id.
 
 4. **More tools**
    - Extend `lib/ai/tools.ts` with tools that:

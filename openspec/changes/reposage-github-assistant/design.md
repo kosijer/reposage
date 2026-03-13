@@ -1,6 +1,6 @@
 ## Context
 
-RepoSage is a Next.js 15 app with Vercel AI SDK (Gemini), React Flow, Supabase, and Zustand. The current UI has a graph canvas (left) and chat panel (right). The chat API streams responses and supports tool calling, but tools are placeholders. There is no GitHub integration yet.
+RepoSage is a Next.js 15 app with Vercel AI SDK (Gemini), React Flow, and Zustand. The current UI has a graph canvas (left) and chat panel (right). The chat API streams responses and supports tool calling, but tools are placeholders. There is no GitHub integration yet.
 
 **Constraints:** No GitHub auth for MVP; public repos only. Must work with GitHub REST API unauthenticated (60 req/hr) or raw content URLs (no rate limit for reads). Keep streaming chat responsive.
 
@@ -46,7 +46,7 @@ RepoSage is a Next.js 15 app with Vercel AI SDK (Gemini), React Flow, Supabase, 
 
 ### 5. Caching: none for MVP
 
-**Choice:** No Supabase/Redis cache for indexed repos in MVP.
+**Choice:** No database/Redis cache for indexed repos in MVP.
 
 **Rationale:** Reduces scope. User can re-paste URL to re-fetch. Add caching later if rate limits or latency become an issue.
 
