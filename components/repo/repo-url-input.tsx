@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { useRepoStore } from "@/stores/repo-store";
+import { useTabStore } from "@/stores/tab-store";
 import { apiUrl } from "@/lib/api-base-url";
 
 export function RepoUrlInput() {
   const [url, setUrl] = useState("");
-  const { setCurrentRepo, setLoading, setError, loading, currentRepo, error, clear } =
-    useRepoStore();
+  const { setLoading, setError, loading, error } = useRepoStore();
+  const addTab = useTabStore((s) => s.addTab);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,7 +31,8 @@ export function RepoUrlInput() {
         return;
       }
 
-      setCurrentRepo(data);
+      addTab(data);
+      setUrl("");
     } catch {
       setError("Failed to index repository");
     } finally {
@@ -45,31 +47,14 @@ export function RepoUrlInput() {
           type="text"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="Paste GitHub repo URL…"
+          placeholder="Paste GitHub repo URL, then Load to open a new tab…"
           disabled={loading}
           aria-label="GitHub repository URL"
         />
         <button type="submit" className="primary" disabled={loading || !url.trim()}>
           {loading ? "Loading…" : "Load"}
         </button>
-        {currentRepo && (
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => {
-              clear();
-              setUrl("");
-            }}
-          >
-            Clear
-          </button>
-        )}
       </form>
-      {currentRepo && (
-        <p className="repo-status">
-          Loaded: <strong>{currentRepo.owner}/{currentRepo.name}</strong>
-        </p>
-      )}
       {error && <p className="repo-error">{error}</p>}
     </div>
   );

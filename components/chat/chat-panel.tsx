@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import { useChat } from "ai/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useRepoStore } from "@/stores/repo-store";
+import { useTabStore } from "@/stores/tab-store";
 import { apiUrl } from "@/lib/api-base-url";
+import type { ChatMessage } from "@/stores/tab-store";
 
 const SUGGEST_IMPROVEMENTS_PROMPT = `Analyze this repository and suggest concrete improvements. Structure your response in these categories:
 
@@ -14,23 +16,73 @@ const SUGGEST_IMPROVEMENTS_PROMPT = `Analyze this repository and suggest concret
 
 Be specific and actionable. Reference actual files or patterns when relevant.`;
 
-export function ChatPanel() {
-  const currentRepo = useRepoStore((s) => s.currentRepo);
+function toChatMessage(m: { id?: string; role: string; content: string }): ChatMessage {
+  return {
+    id: m.id ?? Math.random().toString(36).slice(2, 11),
+    role: m.role,
+    content: typeof m.content === "string" ? m.content : "",
+  };
+}
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, append } = useChat({
-    api: apiUrl("/api/chat"),
-    body: { repoContext: currentRepo },
-  });
+export function ChatPanel() {
+  const { tabs, currentTabId, updateTabMessages } = useTabStore();
+  const currentTab = currentTabId ? tabs.find((t) => t.id === currentTabId) : null;
+  const currentRepo = currentTab?.repo ?? null;
+
+  const { messages, setMessages, input, handleInputChange, handleSubmit, isLoading, append } =
+    useChat({
+      api: apiUrl("/api/chat"),
+      id: currentTabId ?? undefined,
+      initialMessages: currentTab?.messages?.map((m) => ({
+        id: m.id,
+        role: m.role as "user" | "assistant" | "system",
+        content: m.content,
+      })) ?? [],
+      body: { repoContext: currentRepo },
+    });
+
+  // Persist messages to tab when they change
+  useEffect(() => {
+    if (currentTabId && messages.length > 0) {
+      updateTabMessages(
+        currentTabId,
+        messages.map((m) => toChatMessage(m))
+      );
+    }
+  }, [currentTabId, messages, updateTabMessages]);
+
+  // When switching tab, load that tab's messages into the chat (only on tab id change, not when messages update)
+  useEffect(() => {
+    if (currentTabId && currentTab) {
+      const msgs = currentTab.messages.length > 0
+        ? currentTab.messages.map((m) => ({ id: m.id, role: m.role as "user" | "assistant" | "system", content: m.content }))
+        : [];
+      setMessages(msgs);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run on tab switch
+  }, [currentTabId]);
 
   function handleSuggestImprovements() {
-    if (!currentRepo) {
-      append({
-        role: "user",
-        content: "I'd like to get improvement suggestions, but no repository is loaded. Please paste a GitHub URL above first to load one.",
-      });
-      return;
-    }
+    if (!currentRepo) return;
     append({ role: "user", content: SUGGEST_IMPROVEMENTS_PROMPT });
+  }
+
+  if (!currentTabId) {
+    return (
+      <>
+        <div className="chat-scroll">
+          <div className="empty-state">
+            <p className="empty-text">Load a repo in the bar above to open a chat tab.</p>
+          </div>
+        </div>
+        <div className="chat-input-wrap">
+          <div className="chat-input-inner chat-input-disabled">
+            <input placeholder="Load a repo to start…" disabled aria-label="Message" />
+            <button type="button" disabled>Send</button>
+          </div>
+        </div>
+      </>
+    );
   }
 
   return (
@@ -39,23 +91,15 @@ export function ChatPanel() {
         {messages.length === 0 && !isLoading && (
           <div className="empty-state">
             <p className="empty-text">
-              {currentRepo
-                ? (
-                  <>
-                    Ask anything about <strong>{currentRepo.owner}/{currentRepo.name}</strong> — how to run it, what it does, or how to contribute.
-                  </>
-                )
-                : "Load a repo in the bar above, then ask questions here."}
+              Ask anything about <strong>{currentRepo?.owner}/{currentRepo?.name}</strong> — how to run it, what it does, or how to contribute.
             </p>
-            {currentRepo && (
-              <button
-                type="button"
-                onClick={handleSuggestImprovements}
-                className="suggest-link"
-              >
-                Suggest improvements
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleSuggestImprovements}
+              className="suggest-link"
+            >
+              Suggest improvements
+            </button>
           </div>
         )}
         {messages.map((m) => (
@@ -85,7 +129,7 @@ export function ChatPanel() {
           <input
             value={input}
             onChange={handleInputChange}
-            placeholder={currentRepo ? `Ask about ${currentRepo.owner}/${currentRepo.name}…` : "Load a repo above, then type your question…"}
+            placeholder={`Ask about ${currentRepo?.owner}/${currentRepo?.name}…`}
             disabled={isLoading}
             aria-label="Message"
           />
